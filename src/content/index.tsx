@@ -27,23 +27,22 @@ const shadow = host.attachShadow({ mode: 'open' });
 // However, the cleanest way in a pure CRX setup is to rely on Vite's CSS injection or manually inserting a style tag.
 // For now, we will create a container.
 
+import { Canvas } from './Canvas';
+
 const rootContainer = document.createElement('div');
 rootContainer.id = 'scribbleflow-overlay';
+// Reset styles for the container to avoid inheriting from page
+rootContainer.style.position = 'fixed';
+rootContainer.style.top = '0';
+rootContainer.style.left = '0';
+rootContainer.style.width = '0'; // Let canvas inside handle width
+rootContainer.style.height = '0';
+rootContainer.style.zIndex = '2147483647';
 shadow.appendChild(rootContainer);
 
-const Overlay = () => {
-    return (
-        <div className="fixed top-4 right-4 z-[2147483647] font-sans">
-             <div className="glass p-3 rounded-xl shadow-2xl flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="text-xs font-semibold text-slate-700">ScribbleFlow Active</span>
-             </div>
-        </div>
-    );
-}
-
 const root = createRoot(rootContainer);
-root.render(<Overlay />);
+root.render(<Canvas />);
+
 
 // Inject Tailwind styles into Shadow DOM
 // In production, we fetch the CSS file from chrome.runtime.getURL.
