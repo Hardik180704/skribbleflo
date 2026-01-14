@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "ScribbleFlow",
+  "version": "1.0.0",
+  "description": "Premium floating drawing canvas for the web.",
+  "permissions": [
+    "storage",
+    "identity",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://cloud.appwrite.io/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.tsx"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/index.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
