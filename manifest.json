@@ -3,6 +3,11 @@
   "name": "ScribbleFlow",
   "version": "1.0.0",
   "description": "Premium floating drawing canvas for the web.",
+  "icons": {
+    "16": "src/assets/icon-16.png",
+    "48": "src/assets/icon-48.png",
+    "128": "src/assets/icon-128.png"
+  },
   "permissions": [
     "storage",
     "identity",
