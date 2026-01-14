@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { LogOut, PenTool } from 'lucide-react';
+import clsx from 'clsx';
 import '../index.css';
 
 import '@fontsource/inter/400.css';
@@ -24,6 +25,35 @@ const PopupContent = () => {
       </div>
     );
   }
+
+  // Connection Check Logic
+  const [isConnected, setIsConnected] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    if (!user) return; // Only check if logged in
+    
+    const checkConnection = async () => {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) {
+            try {
+                // Ignore chrome:// and edge:// urls
+                if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('edge://')) {
+                    setIsConnected(false); 
+                    return; 
+                }
+
+                await chrome.tabs.sendMessage(tab.id, { action: 'PING' });
+                setIsConnected(true);
+            } catch (e) {
+                setIsConnected(false);
+            }
+        } else {
+             setIsConnected(false);
+        }
+    };
+    checkConnection();
+  }, [user]);
+
 
   if (!user) {
     return (
@@ -102,13 +132,51 @@ const PopupContent = () => {
       <main className="flex-1 p-4 overflow-y-auto">
         <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3">Recent Boards</h2>
         
-        {/* Empty State */}
-        <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
-                <PenTool className="w-6 h-6 text-slate-400" />
+        {/* Empty State / Active Controls */}
+        <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
+             {/* Connection Warning */}
+             {isConnected === false && (
+                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-700 text-xs text-left w-full mb-2">
+                    <strong>⚠️ Not Connected</strong><br/>
+                    The extension is not active on this tab. Please <strong>refresh the page</strong> to start drawing.
+                 </div>
+             )}
+
+             {/* Main Trigger Button */}
+             <button
+                disabled={isConnected === false}
+                onClick={async () => {
+                    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                    if (tab.id) {
+                        try {
+                            await chrome.tabs.sendMessage(tab.id, { action: 'TOGGLE_CANVAS' });
+                            window.close(); // Close popup after action
+                        } catch (e) {
+                           console.error(e);
+                        }
+                    }
+                }}
+                className={clsx(
+                    "w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center space-x-2",
+                    isConnected === false 
+                        ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                        : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/30"
+                )}
+             >
+                <PenTool className="w-5 h-5" />
+                <span>Toggle Overlay</span>
+             </button>
+
+             <p className="text-xs text-slate-400">
+                Click to Show/Hide the drawing toolbar on this page.
+             </p>
+
+            <div className="w-full h-[1px] bg-slate-100 my-4"></div>
+
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
+                <PenTool className="w-6 h-6 text-slate-300" />
             </div>
-            <p className="text-slate-500 text-sm">No boards yet.</p>
-            <p className="text-xs text-slate-400 max-w-[200px]">Visit any webpage and activate ScribbleFlow to start drawing.</p>
+            <p className="text-slate-500 text-sm">No saved boards yet.</p>
         </div>
       </main>
     </div>
