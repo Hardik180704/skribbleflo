@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "ScribbleFlow",
+  "name": "SkribbleFlo",
   "version": "1.0.0",
   "description": "Premium floating drawing canvas for the web.",
   "icons": {
-    "16": "src/assets/icon-16.png",
-    "48": "src/assets/icon-48.png",
-    "128": "src/assets/icon-128.png"
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   },
   "permissions": [
     "storage",
@@ -16,6 +16,7 @@
   ],
   "host_permissions": [
     "https://cloud.appwrite.io/*",
+    "https://fra.cloud.appwrite.io/*",
     "<all_urls>"
   ],
   "background": {
@@ -30,7 +31,12 @@
     }
   ],
   "action": {
-    "default_popup": "src/popup/index.html"
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "web_accessible_resources": [
     {
