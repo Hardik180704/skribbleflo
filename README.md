@@ -5,7 +5,15 @@
 </div>
 
 <div align="center">
-  <video src="https://github.com/user-attachments/assets/73284876-f8ca-47e6-987d-e4d582d8248b" width="100%" />
+  <video 
+    src="https://github.com/user-attachments/assets/73284876-f8ca-47e6-987d-e4d582d8248b" 
+    width="100%" 
+    controls
+    autoplay 
+    muted 
+    loop
+    style="border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.1);"
+  ></video>
 </div>
 
 <br />
