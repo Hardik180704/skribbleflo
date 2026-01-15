@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Canvas as FabricCanvas, PencilBrush, Rect, Circle, Triangle, IText, Path, Point, util, Image as FabricImage } from 'fabric';
-import { PenTool, Eraser, X, MousePointer2, Trash2, Square, Circle as CircleIcon, Type, Sparkles, MonitorPlay, Video, Wifi, Undo2, Redo2, Download, Image as ImageIcon, Wand2, Calculator } from 'lucide-react';
+import { Canvas as FabricCanvas, PencilBrush, Rect, Circle, Triangle, IText, Textbox, Path, Point, util, Image as FabricImage, Shadow, Object as FabricObject, Group } from 'fabric';
+import { PenTool, Eraser, X, MousePointer2, Trash2, Square, Circle as CircleIcon, Type, Sparkles, MonitorPlay, Video, Wifi, Undo2, Redo2, Download, Wand2, StickyNote, LayoutGrid } from 'lucide-react';
 import { saveStroke, subscribeToStrokes } from '../lib/appwrite';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -13,6 +13,14 @@ const COLORS = [
   '#0f172a', // Black
 ];
 
+const STICKY_COLORS = [
+    '#fef3c7', // Yellow
+    '#dcfce7', // Green
+    '#dbeafe', // Blue
+    '#fce7f3', // Pink
+    '#f3e8ff', // Purple
+];
+
 const FONTS = [
   { name: 'Inter', value: 'Inter' },
   { name: 'Jakarta', value: 'Plus Jakarta Sans' },
@@ -21,7 +29,7 @@ const FONTS = [
   { name: 'Cursive', value: 'cursive' },
 ];
 
-type ToolType = 'pointer' | 'pen' | 'eraser' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'presentation' | 'laser';
+type ToolType = 'pointer' | 'pen' | 'eraser' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'presentation' | 'laser' | 'note';
 
 export const Canvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,6 +45,19 @@ export const Canvas = () => {
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  // ... (Lines 41-760 remain unchanged usually, but I need to target the specific changes)
+  // I will just replace the top block to clean imports and constants.
+
+  // Wait, I can't just replace the top block and expect the middle to stay if I don't include it in ReplacementContent 
+  // correctly relative to Start/End.
+  // The 'addStickyNote' function is further down. I should do this in two chunks or one large replacement if they are close?
+  // They are far apart (Lines 1-20 vs Line 770).
+  // I will use multi_replace.
+  
+  // Actually, I'll just use the provided tool call structure.
+  // I will fail if I don't use multi_replace for non-contiguous changes.
+  // I will use multi_replace_file_content.
 
   // Helper to find supported mime type
   const getSupportedMimeType = () => {
@@ -305,6 +326,18 @@ export const Canvas = () => {
       width: window.innerWidth,
       height: window.innerHeight,
     });
+    
+    // Pro Aesthetic: Customize Selection Controls
+    FabricObject.prototype.set({
+        transparentCorners: false,
+        cornerColor: '#ffffff',
+        cornerStrokeColor: '#6366f1', // Indigo 500
+        borderColor: '#6366f1',
+        cornerSize: 10,
+        padding: 8,
+        cornerStyle: 'circle', 
+        borderDashArray: [4, 4],
+    });
 
     const brush = new PencilBrush(canvas);
     brush.width = brushSize;
@@ -495,115 +528,96 @@ export const Canvas = () => {
         // 2. Simplification (take every Nth point).
         // 3. Check angle changes.
         
-        // Creating a Triangle for testing:
-        if (aspectRatio > 0.8 && aspectRatio < 1.2) {
-             newShape = new Circle({
-                left: left + width / 2, 
-                top: top + height / 2,
-                radius: width / 2,
+        // SMART SHAPE RECOGNITION V2: Solidity Heuristic
+        // Solidity = Area of Convex Hull / Area of Bounding Box
+        // Approximate Hull Area by Shoelace Formula on sampled points.
+
+        const bboxArea = width * height;
+        const totalLength = (path as any).getTotalLength ? (path as any).getTotalLength() : 0;
+        
+        // Sampling points to approximate area
+        const sampleCount = 30;
+        const points = [];
+        if (totalLength > 0 && typeof (path as any).getPointOnPath === 'function') {
+            for (let i = 0; i < sampleCount; i++) {
+                 // Sample uniformly
+                 const point = (path as any).getPointOnPath((i / sampleCount) * totalLength);
+                 points.push(point);
+            }
+        } else {
+             // Fallback to simple Rect if we can't sample
+             points.push({x: left, y: top}, {x: left+width, y: top}, {x: left+width, y: top+height}, {x: left, y: top+height});
+        }
+
+        // Shoelace Formula for Polygon Area
+        let pathArea = 0;
+        for (let i = 0; i < points.length; i++) {
+            const j = (i + 1) % points.length;
+            pathArea += points[i].x * points[j].y;
+            pathArea -= points[j].x * points[i].y;
+        }
+        pathArea = Math.abs(pathArea) / 2;
+
+        const solidity = pathArea / bboxArea;
+
+        // Classification Logic
+        // Triangle: 0.5
+        // Circle: 0.785
+        // React: 1.0
+        
+        console.log(`[SmartShape] AR: ${aspectRatio.toFixed(2)}, Solidity: ${solidity.toFixed(2)}`);
+
+        // Extreme Aspect Ratios -> Rect (Lines/Pipes)
+        if (aspectRatio < 0.3 || aspectRatio > 3.0) {
+             newShape = new Rect({
+                left: left, top: top, width: width, height: height,
+                fill: 'transparent', stroke: color, strokeWidth: brushSize, rx: 5, ry: 5,
+             });
+        } 
+        // Triangles (Low Solidity)
+        else if (solidity < 0.65) {
+             newShape = new Triangle({
+                left: left + width / 2, // Triangle origin is bottom-center usually or center?
+                top: top + height / 2, // Fabric centers objects
+                width: width,
+                height: height,
                 fill: 'transparent',
                 stroke: color,
                 strokeWidth: brushSize,
                 originX: 'center',
                 originY: 'center',
              });
-        } else if (aspectRatio < 0.5 || aspectRatio > 2.0) {
-             // Very thin/wide -> Rect
-             newShape = new Rect({
-                left: left,
-                top: top,
-                width: width,
-                height: height,
+             // Fix: Fabric Triangle is specific. It points UP by default. 
+             // We might need to rotate it if the user drew it upside down?
+             // For now, simpler: Just a standard Triangle.
+        }
+        // Circles (Medium Solicoty + Square-ish)
+        else if (solidity >= 0.65 && solidity < 0.88 && aspectRatio > 0.7 && aspectRatio < 1.3) {
+             newShape = new Circle({
+                left: left + width / 2,
+                top: top + height / 2,
+                radius: Math.max(width, height) / 2, // Use max dimension for cleaner circle
                 fill: 'transparent',
                 stroke: color,
                 strokeWidth: brushSize,
-                rx: 10,
-                ry: 10,
-             });
-        } else {
-             // Intermediate AR. Could be Triangle or Rect.
-             // Let's randomly give Triangle a chance if "Smart Mode" implies trying hard?
-             // No, that's annoying.
-             
-             // Let's treat "Triangle" as a manual fallback for now?
-             // Wait, user said "It is not recognizing other shapes".
-             // They probably drew a triangle.
-             
-             // Let's assign Triangle if the path starts/ends at bottom and goes up?
-             // (Peak detection).
-             // If local Max Y (min value) is in the middle of X range...
-             
-             // Let's just try to fit a Triangle for now if it's NOT a circle/rect.
-             // Actually, the previous logic made NOTHING else but Rect or Circle.
-             
-             // Let's default to Triangle if it's roughly 1:1 but NOT a circle?
-             // No.
-             
-             // Let's ADD Triangle as a fallback for 'unrecognized' rects?
-             // No.
-             
-             // I will add a Triangle creation if the bottom width is > top width?
-             // This requires analyzing points.
-             
-             // FOR NOW: I will just add Triangle support if the user selects it manually OR 
-             // leave it as Rect (since 3 points -> BBox ~ Rect).
-             
-             // Wait, I can use `path.path`?
-             // e.path contains the command list.
-             // Let's just default to Rect for now but ADD the Triangle *Component* 
-             // so I can at least explain I added the *Infrastructure* for it and ask for a library?
-             
-             // No, I must solve it.
-             // Let's use this logic:
-             // If the area of the bounding box is significantly larger than the path length squared? No.
-             
-             // I will simply add a Triangle based on a "3-point" check if I can.
-             // But I can't easily.
-             
-             // Let's default to Rect for general shapes, 
-             // and Circle for 1:1.
-             // I will add a 'Triangle' button to the toolbar to prove I can draw it, 
-             // and explain that "Auto-detection of Polygons requires a more heavy-weight library checking for vertices".
-             
-             // But wait, I can implement a simple check:
-             // Get standard deviation of points from the center?
-             
-             // Let's stick to Rect/Circle for auto-recognition and tell the user:
-             // "Smart Mode currently supports Box and Circle. Use the toolbar for specific Triangles".
-             // BUT the user request is "it is not recognizing".
-             
-             // Let's try to detect 3 corners.
-             // I'll skip complex logic to avoid breaking the app and instead:
-             // Add a Triangle Tool explicitly to the toolbar so they can at least draw it manually.
-             // AND add a check: If the user draws a 'V' shape (not closed), it might be a triangle?
-             
-             newShape = new Rect({
-                left: left,
-                top: top,
-                width: width,
-                height: height,
-                fill: 'transparent',
-                stroke: color,
-                strokeWidth: brushSize,
-                rx: 10,
-                ry: 10,
+                originX: 'center',
+                originY: 'center',
              });
         }
-        
-        // Let's actually force a specific shape based on a simple toggle? 
-        // No, the user said "scribble a shape... perfect form".
-        // Let's assume everything is a Rect for now unless we add advanced logic.
-        // But wait, users draw Circles for DBs.
-        
-        // Let's ADD proper logic later. I will just implement the RECT replacement for now 
-        // to show verification, as mostly system design = boxes.
-        // And I'll add a check: if I can, I'll update to Circle if distinct.
-        // Actually, let's use the 'Sparkles' mode to just "Prettify".
-        
+        // Rectangles (High Solidity or Default)
+        else {
+             newShape = new Rect({
+                left: left, top: top, width: width, height: height,
+                fill: 'transparent', stroke: color, strokeWidth: brushSize, rx: 10, ry: 10,
+             });
+        }
+
         if (newShape) {
             canvas.add(newShape);
-            canvas.setActiveObject(newShape);
+            canvas.requestRenderAll();
+            saveHistory();
         }
+             
         
         // Multiplayer: Broadcast Stroke
         if (isMultiplayer) {
@@ -746,7 +760,142 @@ export const Canvas = () => {
           canvas.add(object);
           canvas.setActiveObject(object);
           canvas.requestRenderAll();
+          saveHistory();
       }
+  };
+
+
+
+  const addStickyNote = () => {
+        if (!fabricRef.current) return;
+        const canvas = fabricRef.current;
+        const center = { left: canvas.width / 2, top: canvas.height / 2 };
+        
+        // Random pastel color
+        const baseColor = STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)];
+        // Darker header color (naive darkening)
+        // Actually, let's just map them or use a simple mapping to avoid complex hex math if possible.
+        // Let's use a mapping for safety or a simple darken function.
+        // I'll stick to a simple darker Map for the 5 colors or use the helper above if I trust it.
+        // The helper above is a bit risky with hex strings.
+        // Let's use a simpler approach: Hardcode headers.
+        
+        const COLOR_MAP: Record<string, string> = {
+            '#fef3c7': '#fcd34d', // Yellow -> Darker
+            '#dcfce7': '#86efac', // Green -> Darker
+            '#dbeafe': '#93c5fd', // Blue -> Darker
+            '#fce7f3': '#f9a8d4', // Pink -> Darker
+            '#f3e8ff': '#d8b4fe', // Purple -> Darker
+        };
+        const headerColor = COLOR_MAP[baseColor] || '#ccc';
+
+        const width = 220;
+        const height = 220;
+        const headerHeight = 34;
+
+        // 1. Header Rect (Top)
+        const headerRect = new Rect({
+            left: 0,
+            top: 0,
+            width: width,
+            height: headerHeight,
+            fill: headerColor,
+            rx: 12,
+            ry: 12,
+            originX: 'center',
+            originY: 'top',
+            selectable: false, // Prevent individual selection
+            hoverCursor: 'move' // Show move cursor for group dragging
+        });
+        
+        // 2. Body Rect (Main)
+        const bodyRect = new Rect({
+            left: 0,
+            top: headerHeight - 10,
+            width: width,
+            height: height - headerHeight + 10,
+            fill: baseColor,
+            rx: 12,
+            ry: 12,
+            originX: 'center',
+            originY: 'top',
+            selectable: false, // Prevent individual selection
+            hoverCursor: 'move'
+        });
+
+        // 3. Header Title
+        const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const titleText = new IText(`Note • ${dateStr}`, {
+            left: -width/2 + 15,
+            top: 8,
+            fontSize: 12,
+            fontFamily: 'Inter',
+            fontWeight: 600,
+            fill: 'rgba(0,0,0,0.6)',
+            originX: 'left',
+            originY: 'top',
+            editable: false,
+            selectable: false, // Prevent individual selection
+            hoverCursor: 'move'
+        });
+
+        // 4. Content Textbox
+        const contentBox = new Textbox('Type something...', {
+            left: 0,
+            top: headerHeight + 10,
+            width: width - 30,
+            fontSize: 18,
+            fontFamily: 'Caveat', // Authentic handwriting
+            fill: '#334155',
+            lineHeight: 1.2,
+            splitByGrapheme: true,
+            originX: 'center',
+            originY: 'top',
+            textAlign: 'left',
+            cursorColor: '#334155',
+            // Lock interaction relative to group
+            lockMovementX: true,
+            lockMovementY: true,
+            lockRotation: true,
+            lockScalingX: true,
+            lockScalingY: true,
+            hasControls: false, // No resize handles for text
+            hasBorders: false, // No selection border for text
+            hoverCursor: 'text'
+        });
+
+        // Group them
+        const noteGroup = new Group([bodyRect, headerRect, titleText, contentBox], {
+            left: center.left,
+            top: center.top,
+            originX: 'center',
+            originY: 'center',
+            subTargetCheck: true, // Crucial: Allows selecting the Textbox inside
+            interactive: true,
+            shadow: new Shadow({ color: 'rgba(0,0,0,0.12)', blur: 24, offsetX: 0, offsetY: 12 }),
+            
+            // Custom Props
+            transparentCorners: false,
+            cornerColor: '#ffffff',
+            cornerStrokeColor: '#6366f1',
+            borderColor: '#6366f1',
+            cornerSize: 10,
+            padding: 10,
+            cornerStyle: 'circle',
+            borderDashArray: [4, 4],
+        } as any); // Type cast for custom props
+
+        // Add custom identifiers
+        (noteGroup as any).isStickyNote = true;
+        (noteGroup as any).noteColor = baseColor;
+
+
+        noteGroup.rotate((Math.random() * 4) - 2);
+
+        canvas.add(noteGroup);
+        canvas.setActiveObject(noteGroup);
+        canvas.requestRenderAll();
+        saveHistory();
   };
 
   const clearCanvas = () => {
@@ -852,6 +1001,23 @@ export const Canvas = () => {
                  >
                      <Redo2 size={18} />
                  </ActionButton>
+
+                 {/* Dashboard Shortcut */}
+                  <ActionButton 
+                  onClick={() => {
+                      if (chrome.runtime?.sendMessage) {
+                          chrome.runtime.sendMessage({ action: 'openDashboard' });
+                      } else {
+                          window.open('/dashboard.html', '_blank');
+                      }
+                  }}
+                  className="p-2 rounded-full hover:bg-white/10 text-indigo-400 hover:text-indigo-300 transition-colors flex items-center justify-center border border-indigo-500/30 bg-indigo-500/10 mb-2 mt-2"
+                  title="Dashboard"
+                  disabled={false}
+                 >
+                     <LayoutGrid size={18} />
+                 </ActionButton>
+                 <div className="w-8 h-[1px] bg-white/10 my-1"></div>
              </div>
 
             <ToolButton 
@@ -895,6 +1061,12 @@ export const Canvas = () => {
                 onClick={() => { setActiveTool('text'); addShape('text'); }}
                 icon={<Type size={20} />}
                 title="Text"
+            />
+             <ToolButton 
+                active={activeTool === 'note'} 
+                onClick={() => { setActiveTool('note'); addStickyNote(); }}
+                icon={<StickyNote size={20} />}
+                title="Note"
             />
           </div>
 
@@ -1067,6 +1239,79 @@ export const Canvas = () => {
                )}
 
                 <div className="w-full h-[1px] bg-slate-200/50"></div>
+
+                {/* Sticky Note Controls */}
+                {(selectedObjectType === 'group' && fabricRef.current?.getActiveObject() && (fabricRef.current?.getActiveObject() as any).isStickyNote) && (
+                     <div className="flex flex-col space-y-3 mb-2 pt-2">
+                        {/* Color Picker */}
+                        <div className="flex flex-col space-y-1">
+                            <span className="text-xs text-slate-500 font-medium">Note Color</span>
+                            <div className="flex space-x-1.5">
+                                {STICKY_COLORS.map(c => (
+                                    <button
+                                        key={c}
+                                        onClick={() => {
+                                             const activeObj = fabricRef.current?.getActiveObject() as any;
+                                             if (activeObj && activeObj.isStickyNote) {
+                                                 const group = activeObj as Group;
+                                                 const objects = group.getObjects();
+                                                 const COLOR_MAP: Record<string, string> = {
+                                                    '#fef3c7': '#fcd34d',
+                                                    '#dcfce7': '#86efac',
+                                                    '#dbeafe': '#93c5fd',
+                                                    '#fce7f3': '#f9a8d4',
+                                                    '#f3e8ff': '#d8b4fe',
+                                                };
+                                                if (objects[0].type === 'rect') objects[0].set('fill', c);
+                                                if (objects[1].type === 'rect') objects[1].set('fill', COLOR_MAP[c] || '#ccc');
+                                                activeObj.noteColor = c;
+                                                fabricRef.current?.requestRenderAll();
+                                                saveHistory();
+                                                setSelectedObjectType('group'); 
+                                             }
+                                        }}
+                                        className={clsx(
+                                            "w-6 h-6 rounded-full border border-black/10 transition-transform active:scale-90",
+                                            (fabricRef.current?.getActiveObject() as any).noteColor === c ? "ring-2 ring-indigo-500 ring-offset-2" : "hover:scale-110"
+                                        )}
+                                        style={{ backgroundColor: c }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                         {/* Font Family */}
+                        <div className="flex flex-col space-y-2">
+                            <span className="text-xs text-slate-500 font-medium">Font</span>
+                            <div className="grid grid-cols-2 gap-2">
+                                {FONTS.map(f => (
+                                    <button
+                                    key={f.name}
+                                    onClick={() => {
+                                        const activeObj = fabricRef.current?.getActiveObject();
+                                        if (activeObj && (activeObj as any).isStickyNote) {
+                                            const group = activeObj as Group;
+                                            const objects = group.getObjects();
+                                            if (objects[3] && objects[3].type === 'textbox') {
+                                                objects[3].set('fontFamily', f.value);
+                                                fabricRef.current?.requestRenderAll();
+                                                saveHistory();
+                                            }
+                                        }
+                                    }}
+                                    className={clsx(
+                                        "text-xs p-1.5 rounded transition-colors border",
+                                        "bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100"
+                                    )}
+                                    style={{ fontFamily: f.value }}
+                                    >
+                                        {f.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="w-full h-[1px] bg-slate-200/50 mt-2"></div>
+                     </div>
+                )}
 
                 {/* Delete Selected Object */}
                 {selectedObjectType && (

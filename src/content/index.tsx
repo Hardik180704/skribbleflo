@@ -1,5 +1,9 @@
 import { createRoot } from 'react-dom/client';
 import styles from '../index.css?inline'; // Import styles as string
+// Note: Remote fonts in Shadow DOM need a link tag inside the shadow root or usually just work if in head?
+// Actually, @font-face in shadow dom works, but @import might not.
+// Let's inject a link tag for fonts.
+const FONT_URL = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Caveat:wght@700&display=swap';
 
 import '@fontsource/inter/400.css';
 // Note: Fontsource imports inject @font-face into document.head.
@@ -14,7 +18,7 @@ function init() {
         return;
     }
 
-    console.log('ScribbleFlow Content Script Initializing...');
+    console.log('SkribbleFlo Content Script Initializing...');
 
     // Shadow DOM Injection to isolate styles
     const host = document.createElement('div');
@@ -36,6 +40,12 @@ function init() {
     const style = document.createElement('style');
     style.textContent = styles;
     shadow.appendChild(style);
+
+    // Inject Fonts
+    const fontLink = document.createElement('link');
+    fontLink.rel = 'stylesheet';
+    fontLink.href = FONT_URL;
+    shadow.appendChild(fontLink);
 
     const rootContainer = document.createElement('div');
     rootContainer.id = 'scribbleflow-overlay';
