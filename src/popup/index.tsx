@@ -72,7 +72,7 @@ const PopupContent = () => {
             <PenTool className="w-8 h-8 text-indigo-600" />
           </div>
           <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-premium-gradient">
-            ScribbleFlow
+            SkribbleFlo
           </h1>
           <p className="text-slate-500 text-sm mt-2 text-center px-4">
             Your creative layer for the web. <br/> Sign in to sync your boards.
@@ -117,7 +117,7 @@ const PopupContent = () => {
     <div className="w-[360px] h-[500px] bg-slate-50 flex flex-col font-sans">
       <header className="p-4 glass sticky top-0 z-10 flex items-center justify-between">
         <h1 className="text-lg font-bold bg-clip-text text-transparent bg-premium-gradient">
-          ScribbleFlow
+          SkribbleFlo
         </h1>
         <div className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white flex items-center justify-center text-xs font-bold">
