@@ -62,13 +62,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             oAuthUrl.searchParams.append('failure', redirectUrl);
             oAuthUrl.searchParams.append('scopes', ['email', 'profile'].join(' '));
 
+            console.log("OAuth URL:", oAuthUrl.toString()); // Debugging line
+            alert("Check Console for URL: " + oAuthUrl.toString());
+
             // Launch Web Auth Flow
             chrome.identity.launchWebAuthFlow({
                 url: oAuthUrl.toString(),
                 interactive: true
             }, async (responseUrl) => {
                 if (chrome.runtime.lastError || !responseUrl) {
-                    console.error("Auth failed", chrome.runtime.lastError);
+                    const errMsg = chrome.runtime.lastError?.message || "No response URL";
+                    console.error("Auth failed", errMsg);
+                    alert("Auth Error: " + errMsg);
                     setLoading(false);
                     return;
                 }
@@ -77,8 +82,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 await checkSession();
             });
 
-        } catch (e) {
+        } catch (e: any) {
             console.error("Login exception", e);
+            alert("Login Exception: " + e.message);
             setLoading(false);
         }
     };
