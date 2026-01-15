@@ -6,7 +6,7 @@
 
 <div align="center">
   <video 
-    src="https://github.com/user-attachments/assets/73284876-f8ca-47e6-987d-e4d582d8248b" 
+    src="https://github.com/user-attachments/assets/5b8e62d7-956b-4d3b-8056-c7acca87b556" 
     width="100%" 
     controls
     autoplay 
