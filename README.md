@@ -4,6 +4,10 @@
   <img src="public/logo.png" alt="SkribbleFlo Logo" width="200" />
 </div>
 
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/73284876-f8ca-47e6-987d-e4d582d8248b" width="100%" />
+</div>
+
 <br />
 
 **ScribbleFlow** is a powerful, "Starlight Premium" browser extension that turns any webpage into an infinite canvas. Whether you're presenting designs, collaborating with a team, or just annotating content, ScribbleFlow provides a seamless, high-performance overlay for all your creative needs.
